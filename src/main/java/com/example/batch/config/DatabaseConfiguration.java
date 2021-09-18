@@ -16,7 +16,7 @@ import javax.sql.DataSource;
 
 @Configuration
 @EnableConfigurationProperties({SourceDatabaseProperties.class, TargetDatabaseProperties.class})
-@PropertySource(value = {"classpath:/db/properties/source.properties","classpath:/db/properties/target.properties"})
+@PropertySource(value = {"classpath:/db/properties/${spring.profiles.active}.properties"})
 @RequiredArgsConstructor
 @Slf4j
 public class DatabaseConfiguration {

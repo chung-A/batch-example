@@ -1,29 +1,34 @@
 package com.example.batch.job;
 
 import com.example.batch.model.Pay;
+import com.example.batch.model.PayRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.flow.FlowExecutionStatus;
+import org.springframework.batch.core.job.flow.JobExecutionDecider;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JdbcBatchItemWriter;
-import org.springframework.batch.item.database.JdbcCursorItemReader;
-import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
-import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.batch.item.database.JpaItemWriter;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
+import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Configuration
 @Slf4j
@@ -32,48 +37,111 @@ public class DatabaseJobTest {
 
     @Resource(name = "sourceDataSource")
     public DataSource sourceDatasource;
-    public static int CHUNK_SIZE = 500;
+    @Resource(name = "targetDataSource")
+    public DataSource targetDataSource;
+
+    public static int NOW_COUNT = 0;
+    public static int CHUNK_SIZE = 5000;
+    public final int SAVE_COUNT = 10000;
 
     private final String DATA_SOURCE_TEST_JOB = "datasourcetestjob";
+    private final String DATA_SOURCE_TEST_ADD_STEP = "datasourcetestaddstep";
     private final String DATA_SOURCE_TEST_STEP = "datasourceteststep";
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
 
+    private ExecuteType executeType = ExecuteType.SOURCE;
+
     @Bean
     public Job test() {
+        NOW_COUNT = 0;
+
         return jobBuilderFactory.get(DATA_SOURCE_TEST_JOB)
-                .start(doStep())
                 .incrementer(new RunIdIncrementer())
+                .start(doStep(null))
+//                .next(decider())
+//                .from(decider())
+//                    .on("CONTINUE")
+//                    .to(doStep(null))
+//                .end()
                 .build();
     }
 
     @Bean
-    public Step doStep() {
+    @JobScope
+    public Step doStep(@Value("#{jobParameters[type]}") String type) {
+        if (StringUtils.hasText(type) && "target".equals(type)) {
+            executeType = ExecuteType.TARGET;
+        }
+
         return stepBuilderFactory.get(DATA_SOURCE_TEST_STEP)
                 .<Pay, Pay>chunk(CHUNK_SIZE)
-                .reader(jdbcCursorItemReader())
-                .writer(jdbcCursorItemWriter())
+                .reader(itemReader())
+//                .processor()
+                .writer(writer())
                 .build();
     }
 
     @Bean
-    public JdbcCursorItemReader<Pay> jdbcCursorItemReader() {
-        return new JdbcCursorItemReaderBuilder<Pay>()
-                .fetchSize(CHUNK_SIZE)
-                .dataSource(sourceDatasource)
-                .rowMapper(new BeanPropertyRowMapper<>(Pay.class))
-                .sql("SELECT * FROM BATCH_JOB_EXECUTION_CONTEXT;")
-                .name("jdbcCursorItemReader")
-                .build();
+    public ItemReader<Pay> itemReader() {
+        List<Pay> list = new ArrayList<>();
+        Random r = new Random();
+
+        String txName = executeType == ExecuteType.SOURCE ? "source" : "target";
+
+        for (int i = 0; i < CHUNK_SIZE; i++) {
+            list.add(new Pay((long) r.nextInt(10000), txName,
+                    LocalDateTime.now()
+                            .minusDays(r.nextInt(100))
+                            .minusHours(r.nextInt(24))
+                            .minusMinutes(r.nextInt(60))
+                            .minusSeconds(r.nextInt(60))
+                    )
+            );
+        }
+
+        return new ListItemReader<>(list);
     }
 
     @Bean
-    public ItemWriter<Pay> jdbcCursorItemWriter() {
-        return list ->{
-            for (Pay pay : list) {
-                log.info("current pay is {}", pay);
+    public ItemWriter<Pay> writer() {
+        DataSource ds = sourceDatasource;
+        if (executeType == ExecuteType.TARGET) {
+            ds = targetDataSource;
+        }
+
+        return new JdbcBatchItemWriterBuilder<Pay>()
+                .dataSource(ds)
+                .sql("insert into pay(amount,tx_date_time,tx_name) values (:amount,:txDateTime,:txName)")
+                .beanMapped()
+                .build();
+    }
+
+    private final PayRepository payRepository;
+
+    @Bean
+    public JobExecutionDecider decider() {
+        return new JobExecutionDecider() {
+            @Override
+            public FlowExecutionStatus decide(JobExecution jobExecution, StepExecution stepExecution) {
+                long count = payRepository.count();
+
+                log.info("NOW COUNT={}", count);
+                NOW_COUNT += CHUNK_SIZE;
+
+                if (NOW_COUNT >= SAVE_COUNT) {
+                    return new FlowExecutionStatus("OK");
+                }
+                else{
+                    return new FlowExecutionStatus("CONTINUE");
+                }
             }
         };
+    }
+
+
+    public enum ExecuteType{
+        SOURCE,TARGET
     }
 }

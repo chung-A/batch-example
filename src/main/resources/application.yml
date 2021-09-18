@@ -1,10 +1,10 @@
 spring:
   profiles:
-    active: mysql
+#    local: My Mac/ enter: enter mac
+    active: local
   batch:
     job:
       names: ${job.name:NONE}
-
 #---
 #spring:
 #  datasource:
@@ -13,14 +13,19 @@ spring:
 #      username: sa
 #      password:
 #      driver-class-name: org.h2.Driver
+logging:
+  level:
+    org:
+      springframework:
+        batch: INFO
 ---
 spring:
   datasource:
     hikari:
       driver-class-name: com.mysql.cj.jdbc.Driver
       username: root
-#      password: 71405999
-    url: jdbc:mysql://localhost:3306/test
+      password: 71405999
+    url: jdbc:mysql://localhost:3306/batchtest
   jpa:
     hibernate:
       ddl-auto: create
