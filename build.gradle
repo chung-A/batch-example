@@ -1,8 +1,17 @@
+buildscript {
+    dependencies {
+        classpath("nu.studer:gradle-jooq-plugin:3.0.2")
+    }
+}
+
 plugins {
-    id 'org.springframework.boot' version '2.5.4'
+    id 'org.springframework.boot' version '2.2.10.RELEASE'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
+
 }
+
+apply plugin: 'nu.studer.jooq'
 
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
@@ -22,9 +31,17 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-batch'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+
+    //jooq
+    jooqRuntime 'mysql:mysql-connector-java'
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    implementation 'org.jooq:jooq'
+    implementation 'org.jooq:jooq-meta'
+    implementation 'org.jooq:jooq-codegen'
+
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
-    runtimeOnly 'mysql:mysql-connector-java'
+    compile 'mysql:mysql-connector-java'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.batch:spring-batch-test'
@@ -32,4 +49,65 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+dependencyManagement {
+    dependencies {
+        dependency "org.jooq:jooq:3.12.2"
+    }
+}
+
+ext {
+    source_db_url = String.format("jdbc:mysql://localhost:3306/%s?serverTimezone=Asia/Seoul", "test")
+    source_db_user = "root"
+    source_db_password = "71405999"
+}
+
+jooq {
+    pay(sourceSets.main) {
+        jdbc {
+            driver = 'com.mysql.cj.jdbc.Driver'
+            url = "$source_db_url"
+            user = "$source_db_user"
+            password = "$source_db_password"
+        }
+        generator {
+            name = 'org.jooq.codegen.JavaGenerator'
+            database {
+                name = 'org.jooq.meta.mysql.MySQLDatabase'
+                includes = "pay.*"
+                includeExcludeColumns = true
+                outputSchemaToDefault = false
+                unsignedTypes = false
+            }
+            generate {
+                javaTimeTypes = true
+                pojos = true
+                serializablePojos = true
+                pojosToString = true
+                pojosEqualsAndHashCode = true
+                fluentSetters = true //setter 가 builder pattern 으로 바뀜
+            }
+            target {
+                packageName = 'com.example.batch.db'
+            }
+            strategy {
+                name = null
+                matchers {
+                    tables {
+                        table {
+                            pojoClass {
+                                transform = "PASCAL"
+                                expression = "\$0_POJO"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+compileJava {
+    dependsOn = ['generatePayJooqSchemaSource']
 }

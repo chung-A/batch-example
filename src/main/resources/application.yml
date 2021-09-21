@@ -25,7 +25,10 @@ spring:
       driver-class-name: com.mysql.cj.jdbc.Driver
       username: root
       password: 71405999
-    url: jdbc:mysql://localhost:3306/batchtest
+    url: jdbc:mysql://localhost:3306/test?serverTimezone=Asia/Seoul
   jpa:
-    hibernate:
-      ddl-auto: create
+    database: mysql
+
+#  jpa:
+#    hibernate:
+#      ddl-auto: create

@@ -59,6 +59,6 @@ public class DatabaseConfiguration {
         dataSource.addDataSourceProperty("cachePrepStmts", "true");
         dataSource.addDataSourceProperty("prepStmtCacheSize", "250");
         dataSource.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-//        dataSource.addDataSourceProperty("queryInterceptors", "com.kakaopay.kard.config.db.interceptor.KardQueryInterceptor");
+        dataSource.addDataSourceProperty("queryInterceptors", "com.example.batch.config.db.interceptors.CustomQueryInterceptor");
     }
 }

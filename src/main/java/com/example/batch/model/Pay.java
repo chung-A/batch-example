@@ -4,10 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -22,6 +19,7 @@ public class Pay {
     private Long id;
     private Long amount;
     private String txName;
+
     private LocalDateTime txDateTime;
 
     public Pay(Long amount, String txName, LocalDateTime txDateTime) {

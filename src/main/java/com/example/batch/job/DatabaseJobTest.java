@@ -41,7 +41,7 @@ public class DatabaseJobTest {
     public DataSource targetDataSource;
 
     public static int NOW_COUNT = 0;
-    public static int CHUNK_SIZE = 5000;
+    public static int CHUNK_SIZE = 100;
     public final int SAVE_COUNT = 10000;
 
     private final String DATA_SOURCE_TEST_JOB = "datasourcetestjob";
@@ -55,8 +55,6 @@ public class DatabaseJobTest {
 
     @Bean
     public Job test() {
-        NOW_COUNT = 0;
-
         return jobBuilderFactory.get(DATA_SOURCE_TEST_JOB)
                 .incrementer(new RunIdIncrementer())
                 .start(doStep(null))
@@ -117,29 +115,6 @@ public class DatabaseJobTest {
                 .beanMapped()
                 .build();
     }
-
-    private final PayRepository payRepository;
-
-    @Bean
-    public JobExecutionDecider decider() {
-        return new JobExecutionDecider() {
-            @Override
-            public FlowExecutionStatus decide(JobExecution jobExecution, StepExecution stepExecution) {
-                long count = payRepository.count();
-
-                log.info("NOW COUNT={}", count);
-                NOW_COUNT += CHUNK_SIZE;
-
-                if (NOW_COUNT >= SAVE_COUNT) {
-                    return new FlowExecutionStatus("OK");
-                }
-                else{
-                    return new FlowExecutionStatus("CONTINUE");
-                }
-            }
-        };
-    }
-
 
     public enum ExecuteType{
         SOURCE,TARGET
