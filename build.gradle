@@ -58,7 +58,7 @@ dependencyManagement {
 }
 
 ext {
-    source_db_url = String.format("jdbc:mysql://localhost:3306/%s?serverTimezone=Asia/Seoul", "test")
+    source_db_url = String.format("jdbc:mysql://localhost:3306/%s?serverTimezone=Asia/Seoul", "test2")
     source_db_user = "root"
     source_db_password = "71405999"
 }
